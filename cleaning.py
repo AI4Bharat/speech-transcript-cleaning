@@ -3,11 +3,13 @@ import string
 import re
 from pathlib import Path
 import os
+import regex
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from indicnlp.normalize.indic_normalize import IndicNormalizerFactory
+from indicnlp.tokenize.sentence_tokenize import sentence_split
 
 from num_to_word import num_to_word
 
@@ -55,6 +57,35 @@ def convert_num_to_word_sentence(line, lang_code):
             new_line += word + ' '
     new_line = new_line.rstrip().lstrip()
     return new_line
+
+def indic_language_identifier(text, lang_code):
+    if lang_code == 'as':
+        check_indic = bool(regex.fullmatch(r'\P{L}*\p{Bengali}+(?:\P{L}+\p{Bengali}+)*\P{L}*', text))
+    elif lang_code == 'bn':
+        check_indic = bool(regex.fullmatch(r'\P{L}*\p{Bengali}+(?:\P{L}+\p{Bengali}+)*\P{L}*', text))
+    elif lang_code == 'gu':
+        check_indic = bool(regex.fullmatch(r'\P{L}*\p{Gujarati}+(?:\P{L}+\p{Gujarati}+)*\P{L}*', text))
+    elif lang_code == 'hi':
+        check_indic = bool(regex.fullmatch(r'\P{L}*\p{Devanagari}+(?:\P{L}+\p{Devanagari}+)*\P{L}*', text))
+    elif lang_code == 'kn':
+        check_indic = bool(regex.fullmatch(r'\P{L}*\p{Kannada}+(?:\P{L}+\p{Kannada}+)*\P{L}*', text))
+    elif lang_code == 'ml':
+        check_indic = bool(regex.fullmatch(r'\P{L}*\p{Malayalam}+(?:\P{L}+\p{Malayalam}+)*\P{L}*', text))
+    elif lang_code == 'mr':
+        check_indic = bool(regex.fullmatch(r'\P{L}*\p{Devanagari}+(?:\P{L}+\p{Devanagari}+)*\P{L}*', text))
+    elif lang_code == 'or':
+        check_indic = bool(regex.fullmatch(r'\P{L}*\p{Oriya}+(?:\P{L}+\p{Oriya}+)*\P{L}*', text))
+    elif lang_code == 'pa':
+        check_indic = bool(regex.fullmatch(r'\P{L}*\p{Gurmukhi}+(?:\P{L}+\p{Gurmukhi}+)*\P{L}*', text))
+    elif lang_code == 'sa':
+        check_indic = bool(regex.fullmatch(r'\P{L}*\p{Devanagari}+(?:\P{L}+\p{Devanagari}+)*\P{L}*', text))
+    elif lang_code == 'ta':
+        check_indic = bool(regex.fullmatch(r'\P{L}*\p{Tamil}+(?:\P{L}+\p{Tamil}+)*\P{L}*', text))
+    elif lang_code == 'te':
+        check_indic = bool(regex.fullmatch(r'\P{L}*\p{Telugu}+(?:\P{L}+\p{Telugu}+)*\P{L}*', text))
+    elif lang_code == 'ur':
+        check_indic = bool(regex.fullmatch(r'\P{L}*\p{Arabic}+(?:\P{L}+\p{Arabic}+)*\P{L}*', text))
+    return check_indic
 
 
 def cleaning_pipeline(input_file, output_file, lang_code):
@@ -111,11 +142,10 @@ def crisp_cleaning_pipeline(inline, lang_code):
     inline = inline.translate(str.maketrans('', '', string.punctuation+'।'))
     inline = convert_num_to_word_sentence(inline, lang_code)
     inline = normalize_sentence(inline, lang_code)
-    # matched_list = [char in dict_characters for char in inline]
-    # no_ood = all(matched_list)
-    # if no_ood:
-    #     return inline
-    return inline
+    inlang = indic_language_identifier(inline, lang_code)
+    if inlang:
+        return inline
+    return None
 
 if __name__ == "__main__":
 
@@ -135,10 +165,12 @@ if __name__ == "__main__":
     lines = [line.rstrip() for line in lines]
     lines = [line for line in lines if line != '']
 
-    lines = Parallel(n_jobs=8)(delayed(crisp_cleaning_pipeline)(line, language) for line in tqdm(lines))
+    split_lines = []
+    for line in lines:
+        split_lines.extend(sentence_split(line, language))
+
+    lines = Parallel(n_jobs=8)(delayed(crisp_cleaning_pipeline)(line, language) for line in tqdm(split_lines))
     with open(output_file, "w") as f:
         for line in lines:
             if line is not None:
-                f.write(line)
-
-        
+                f.write(line+'\n')
