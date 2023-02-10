@@ -153,13 +153,6 @@ if __name__ == "__main__":
     output_file = sys.argv[2]
     language = sys.argv[3]
 
-    dict_file = f"dicts/{language}.dict.txt"
-    dict_df = pd.read_csv(dict_file, header=None, sep=' ')
-    dict_characters = ''.join(dict_df[0].to_list())
-    dict_characters += ' '
-    print("Dictionary Loaded.")
-
-    # cleaning_pipeline(input_file, output_file, language)
     with open(input_file, "r") as f:
         lines = f.readlines()
     lines = [line.rstrip() for line in lines]
